@@ -35,40 +35,40 @@ enum LeaveStatus {
 }
 
 
-enum SubscriptionPlan {
-  BASIC
-  PRO
-  ELITE
-  ENTERPRISE
+enum BillingCycle {
+  MONTHLY
+  YEARLY
 }
 
 model Plans {
-  plan_id   String           @id @default(uuid())
-  plan      SubscriptionPlan @unique
-  price     Int
-  updatedAt DateTime         @updatedAt
+  plan_id        String        @id @default(uuid())
+  billingCycle   BillingCycle
+  price          Int
+  durationInDays Int           // 28 or 340
+  updatedAt      DateTime      @updatedAt
 
-  // One Plan can have many Subscriptions
-  subscriptions Subscription[]
+  subscriptions  Subscription[]
 }
 
-
-
 model Subscription {
-  subscription_id  String   @id @default(uuid())
-  price            String
-  discountedPrice  String
-  couponCode       String?
-  isActive         Boolean  @default(true)
-  subscribedAt     DateTime @default(now())
+  subscription_id    String      @id @default(uuid())
+  price              String
+  discountedPrice    String
+  couponCode         String?
+  isActive           Boolean     @default(false)  // Initially false, updated after payment
+  subscribedAt       DateTime    @default(now())
 
-  // Foreign key to Company (one-to-one)
-  company_id       String   @unique
-  company          Company  @relation(fields: [company_id], references: [company_id])
+  // End date of the subscription calculated from the plan's duration
+  endSubscriptionDate DateTime   // Calculated based on subscribedAt and durationInDays
 
-  // Foreign key to Plan (many subscriptions can belong to one plan)
-  plan_id          String
-  plan             Plans    @relation(fields: [plan_id], references: [plan_id])
+  company_id         String      @unique
+  company            Company     @relation(fields: [company_id], references: [company_id])
+
+  plan_id            String
+  plan               Plans       @relation(fields: [plan_id], references: [plan_id])
+
+  // Additional fields to track temporary state before user creation (optional)
+  tempStatus         String      @default("PENDING")  // PENDING, COMPLETED, etc.
 }
 
 model Company {
