@@ -5,7 +5,7 @@ CREATE TYPE "Role" AS ENUM ('SUPER_ADMIN', 'ADMIN', 'STAFF');
 CREATE TYPE "LeaveStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateEnum
-CREATE TYPE "SubscriptionPlan" AS ENUM ('BASIC', 'PRO', 'ELITE', 'ENTERPRISE');
+CREATE TYPE "BillingCycle" AS ENUM ('MONTHLY', 'YEARLY');
 
 -- CreateTable
 CREATE TABLE "TempRegistration" (
@@ -24,8 +24,9 @@ CREATE TABLE "TempRegistration" (
 -- CreateTable
 CREATE TABLE "Plans" (
     "plan_id" TEXT NOT NULL,
-    "plan" "SubscriptionPlan" NOT NULL,
+    "billingCycle" "BillingCycle" NOT NULL,
     "price" INTEGER NOT NULL,
+    "durationInDays" INTEGER NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Plans_pkey" PRIMARY KEY ("plan_id")
@@ -37,10 +38,12 @@ CREATE TABLE "Subscription" (
     "price" TEXT NOT NULL,
     "discountedPrice" TEXT NOT NULL,
     "couponCode" TEXT,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "isActive" BOOLEAN NOT NULL DEFAULT false,
     "subscribedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "endSubscriptionDate" TIMESTAMP(3) NOT NULL,
     "company_id" TEXT NOT NULL,
     "plan_id" TEXT NOT NULL,
+    "tempStatus" TEXT NOT NULL DEFAULT 'PENDING',
 
     CONSTRAINT "Subscription_pkey" PRIMARY KEY ("subscription_id")
 );
@@ -139,9 +142,6 @@ CREATE TABLE "Token" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TempRegistration_email_key" ON "TempRegistration"("email");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Plans_plan_key" ON "Plans"("plan");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Subscription_company_id_key" ON "Subscription"("company_id");
