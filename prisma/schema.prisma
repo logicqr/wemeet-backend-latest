@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+// prisma/schema.prisma
+datasource db {
+  provider  = "postgresql"
+  url  	    = env("DATABASE_URL")
+  // uncomment next line if you use Prisma <5.10
+  // directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model TempRegistration {
+  tempId          String   @id @default(uuid())
+  companyName String
+  userName    String
+  email       String   @unique
+  password    String
+  position    String
+  orderId     String
+  createdAt   DateTime @default(now())
+  }
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  STAFF
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+
+enum SubscriptionPlan {
+  BASIC
+  PRO
+  ELITE
+  ENTERPRISE
+}
+
+model Plans {
+  plan_id   String           @id @default(uuid())
+  plan      SubscriptionPlan @unique
+  price     Int
+  updatedAt DateTime         @updatedAt
+
+  // One Plan can have many Subscriptions
+  subscriptions Subscription[]
+}
+
+
+
+model Subscription {
+  subscription_id  String   @id @default(uuid())
+  price            String
+  discountedPrice  String
+  couponCode       String?
+  isActive         Boolean  @default(true)
+  subscribedAt     DateTime @default(now())
+
+  // Foreign key to Company (one-to-one)
+  company_id       String   @unique
+  company          Company  @relation(fields: [company_id], references: [company_id])
+
+  // Foreign key to Plan (many subscriptions can belong to one plan)
+  plan_id          String
+  plan             Plans    @relation(fields: [plan_id], references: [plan_id])
+}
+
+model Company {
+  company_id   String   @id @default(uuid())
+  companyName String
+ 
+  subscription Subscription?
+  createdAt   DateTime @default(now())
+  user        User[]
+}
+
+model User {
+  user_id    String   @id @default(uuid())
+  userName   String
+  email      String   @unique
+  position   String
+  password   String
+  role       Role
+  company_id String
+  company    Company @relation(fields:[company_id],references:[company_id])
+  meeting    Meeting[]
+meetingParticipant MeetingParticipant[]
+attendance    Attendance[]
+leaveRequest  LeaveRequest[]
+}
+
+model Meeting {
+  meeting_id  String   @id @default(uuid())
+  title       String
+  description String?
+  scheduledAt String
+  link        String
+  createdAt   DateTime @default(now())
+  user_id     String
+  user        User @relation(fields:[user_id],references:[user_id])
+  meetingParticipant MeetingParticipant[]
+}
+
+model MeetingParticipant {
+  meetingparticipant_id        String   @id @default(uuid())
+  meeting_id String
+  user_id    String
+  meeting   Meeting  @relation(fields: [meeting_id], references: [meeting_id])
+  user      User     @relation(fields: [user_id], references: [user_id])
+}
+
+model Attendance {
+  attendance_id String   @id @default(uuid())
+  date         DateTime
+  checkIn      DateTime?
+  checkOut     DateTime?
+  latitude     Float?       // Latitude coordinate
+  longitude    Float?       // Longitude coordinate
+  status       String        // PRESENT | ABSENT | ON_LEAVE | LATE
+  user_id       String   
+  user         User          @relation(fields: [user_id], references: [user_id])
+}
+
+model LeaveRequest {
+  leave_id     String      @id @default(uuid())     
+  startDate   String
+  endDate     String
+  reason      String
+  status      LeaveStatus @default(PENDING)
+  approvedBy  String?  
+  createdAt   DateTime    @default(now())
+  user_id      String 
+  user        User        @relation(fields: [user_id], references: [user_id])
+}
+
+model Coupon {
+  coupon_id         String   @id @default(uuid())
+  code       String   @unique
+  discount   Int      // Percentage (e.g., 20 means 20%)
+  isActive   Boolean  @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model Token {
+  token_id String @unique @id @default(cuid())
+  refreshToken String
+}

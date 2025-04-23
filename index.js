@@ -1,0 +1,30 @@
+const express = require("express")
+const cors = require("cors")
+const { PrismaClient } = require("@prisma/client");
+const app = express()
+const prisma = new PrismaClient()
+app.use(cors())
+app.use(express.json())
+
+app.post("/create-plan",async(req,res)=>{
+    const data = req.body;
+    const createPlan = await prisma.plans.create({
+        data:{
+            plan:data.plan,
+            price:data.price
+        }
+    })
+    res.json({
+        data:createPlan
+    })
+})
+app.get("/plans",async(req,res)=>{
+    const allPlans = await prisma.plans.findMany()
+    res.json({
+        data:allPlans
+    })
+})
+
+app.listen(9000,()=>{
+    console.log("WEMEET SERVER STARTED.........")
+})
