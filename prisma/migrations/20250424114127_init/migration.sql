@@ -4,50 +4,6 @@ CREATE TYPE "Role" AS ENUM ('SUPER_ADMIN', 'ADMIN', 'STAFF');
 -- CreateEnum
 CREATE TYPE "LeaveStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
--- CreateEnum
-CREATE TYPE "BillingCycle" AS ENUM ('MONTHLY', 'YEARLY');
-
--- CreateTable
-CREATE TABLE "TempRegistration" (
-    "tempId" TEXT NOT NULL,
-    "companyName" TEXT NOT NULL,
-    "userName" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
-    "position" TEXT NOT NULL,
-    "orderId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "TempRegistration_pkey" PRIMARY KEY ("tempId")
-);
-
--- CreateTable
-CREATE TABLE "Plans" (
-    "plan_id" TEXT NOT NULL,
-    "billingCycle" "BillingCycle" NOT NULL,
-    "price" INTEGER NOT NULL,
-    "durationInDays" INTEGER NOT NULL,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Plans_pkey" PRIMARY KEY ("plan_id")
-);
-
--- CreateTable
-CREATE TABLE "Subscription" (
-    "subscription_id" TEXT NOT NULL,
-    "price" TEXT NOT NULL,
-    "discountedPrice" TEXT NOT NULL,
-    "couponCode" TEXT,
-    "isActive" BOOLEAN NOT NULL DEFAULT false,
-    "subscribedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "endSubscriptionDate" TIMESTAMP(3) NOT NULL,
-    "company_id" TEXT NOT NULL,
-    "plan_id" TEXT NOT NULL,
-    "tempStatus" TEXT NOT NULL DEFAULT 'PENDING',
-
-    CONSTRAINT "Subscription_pkey" PRIMARY KEY ("subscription_id")
-);
-
 -- CreateTable
 CREATE TABLE "Company" (
     "company_id" TEXT NOT NULL,
@@ -121,18 +77,6 @@ CREATE TABLE "LeaveRequest" (
 );
 
 -- CreateTable
-CREATE TABLE "Coupon" (
-    "coupon_id" TEXT NOT NULL,
-    "code" TEXT NOT NULL,
-    "discount" INTEGER NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "expiresAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Coupon_pkey" PRIMARY KEY ("coupon_id")
-);
-
--- CreateTable
 CREATE TABLE "Token" (
     "token_id" TEXT NOT NULL,
     "refreshToken" TEXT NOT NULL,
@@ -141,25 +85,10 @@ CREATE TABLE "Token" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TempRegistration_email_key" ON "TempRegistration"("email");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Subscription_company_id_key" ON "Subscription"("company_id");
-
--- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Coupon_code_key" ON "Coupon"("code");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Token_token_id_key" ON "Token"("token_id");
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "Company"("company_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "Plans"("plan_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "Company"("company_id") ON DELETE RESTRICT ON UPDATE CASCADE;
