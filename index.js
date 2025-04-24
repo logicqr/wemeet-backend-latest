@@ -28,6 +28,14 @@ app.use(express.json())
 
 app.post("/api/register", async (req, res) => {
     const data = req.body;
+    const isExistingUser = await prisma.user.findUnique({
+        where:{
+            email:data.email
+        }
+    })
+    if (isExistingUser) {
+        return res.status(400).json({ message: "This email is already registered. Please use a different one." });
+    }
     const companyName = await prisma.company.create({
         data: {
             companyName: data.companyName
@@ -44,7 +52,9 @@ app.post("/api/register", async (req, res) => {
         }
     })
     res.json({
-        companyRegister
+        data: {
+            message:`Registration successful! Welcome aboard, ${companyRegister.userName}.`
+        }
     })
 })
 
@@ -279,7 +289,8 @@ app.post('/api/leave-request', async (req, res) => {
         data: {
             startDate: data.startDate,
             endDate: data.endDate,
-            reason: data.reason
+            reason: data.reason,
+            user_id:data.user_id
         }
     })
     res.json({
@@ -306,11 +317,63 @@ app.post('/api/leave-request/update-status', async (req, res) => {
     }
   });
 
-app.get("/api/admin-leave-request",async(req,res)=>{
-    const adminLeaveRequest = await prisma.leaveRequest.findMany({
-        
+app.get("/api/leave-request",async(req,res)=>{
+    const adminLeaveRequest = await prisma.leaveRequest.findMany()
+    res.json({
+        adminLeaveRequest
     })
 })
+
+app.get("/api/admin-leave-request", async (req, res) => {
+    try {
+        const adminLeaveRequests = await prisma.leaveRequest.findMany({
+            where: {
+                user: {
+                    role: 'ADMIN'
+                }
+            },
+            include: {
+                user:{
+                    select: {
+                        userName: true,
+                        position: true,
+                        role: true 
+                    }
+                }
+            }
+        });
+
+        res.json({ adminLeaveRequests });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch admin leave requests" });
+    }
+});
+
+app.get("/api/staff-leave-request", async (req, res) => {
+    try {
+        const staffLeaveRequests = await prisma.leaveRequest.findMany({
+            where: {
+                user: {
+                    role: 'STAFF'
+                }
+            },
+            include: {
+                user:{
+                    select: {
+                        userName: true,
+                        position: true,
+                        role: true 
+                    }
+                }
+            }
+        });
+
+        res.json({ staffLeaveRequests });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch staff leave requests" });
+    }
+});
+
   
 
 
