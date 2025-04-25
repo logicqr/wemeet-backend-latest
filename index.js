@@ -327,7 +327,7 @@ app.get("/api/leave-request", async (req, res) => {
 
 app.get("/api/admin-leave-request", async (req, res) => {
     try {
-        const adminLeaveRequests = await prisma.leaveRequest.findMany({
+        const LeaveRequests = await prisma.leaveRequest.findMany({
             where: {
                 user: {
                     role: 'ADMIN'
