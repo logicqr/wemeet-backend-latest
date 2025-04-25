@@ -341,6 +341,8 @@ app.get("/api/admin-leave-request", async (req, res) => {
                         role: true
                     }
                 }
+            },orderBy: {
+                createdAt: 'desc' // optional sorting
             }
         });
 
