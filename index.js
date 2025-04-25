@@ -346,7 +346,7 @@ app.get("/api/admin-leave-request", async (req, res) => {
             }
         });
 
-        res.json({ adminLeaveRequests });
+        res.json({ LeaveRequests });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch admin leave requests" });
     }
@@ -373,7 +373,7 @@ app.get("/api/leave-request/:user_id", async (req, res) => {
 
 app.get("/api/staff-leave-request", async (req, res) => {
     try {
-        const staffLeaveRequests = await prisma.leaveRequest.findMany({
+        const LeaveRequests = await prisma.leaveRequest.findMany({
             where: {
                 user: {
                     role: 'STAFF'
@@ -390,7 +390,7 @@ app.get("/api/staff-leave-request", async (req, res) => {
             }
         });
 
-        res.json({ staffLeaveRequests });
+        res.json({ LeaveRequests });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch staff leave requests" });
     }
