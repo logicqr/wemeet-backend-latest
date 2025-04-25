@@ -29,8 +29,8 @@ app.use(express.json())
 app.post("/api/register", async (req, res) => {
     const data = req.body;
     const isExistingUser = await prisma.user.findUnique({
-        where:{
-            email:data.email
+        where: {
+            email: data.email
         }
     })
     if (isExistingUser) {
@@ -53,7 +53,7 @@ app.post("/api/register", async (req, res) => {
     })
     res.json({
         data: {
-            message:`Registration successful! Welcome aboard, ${companyRegister.userName}.`
+            message: `Registration successful! Welcome aboard, ${companyRegister.userName}.`
         }
     })
 })
@@ -290,34 +290,35 @@ app.post('/api/leave-request', async (req, res) => {
             startDate: data.startDate,
             endDate: data.endDate,
             reason: data.reason,
-            user_id:data.user_id
+            user_id: data.user_id
         }
     })
     res.json({
-        data:createLeaveRequest
+        data: createLeaveRequest
     })
 })
 
 app.post('/api/leave-request/update-status', async (req, res) => {
     const data = req.body;
-  
-    try {
-      const updatedLeave = await prisma.leaveRequest.update({
-        where: { 
-            leave_id:data.leave_id },
-        data: {
-          status:data.status,
-          approvedBy:data.approvedBy, // optional, include only if relevant
-        },
-      });
-  
-      res.json({ message: 'Leave request status updated successfully', data: updatedLeave });
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update status', details: error.message });
-    }
-  });
 
-app.get("/api/leave-request",async(req,res)=>{
+    try {
+        const updatedLeave = await prisma.leaveRequest.update({
+            where: {
+                leave_id: data.leave_id
+            },
+            data: {
+                status: data.status,
+                approvedBy: data.approvedBy, // optional, include only if relevant
+            },
+        });
+
+        res.json({ message: 'Leave request status updated successfully', data: updatedLeave });
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to update status', details: error.message });
+    }
+});
+
+app.get("/api/leave-request", async (req, res) => {
     const adminLeaveRequest = await prisma.leaveRequest.findMany()
     res.json({
         adminLeaveRequest
@@ -333,11 +334,11 @@ app.get("/api/admin-leave-request", async (req, res) => {
                 }
             },
             include: {
-                user:{
+                user: {
                     select: {
                         userName: true,
                         position: true,
-                        role: true 
+                        role: true
                     }
                 }
             }
@@ -346,6 +347,25 @@ app.get("/api/admin-leave-request", async (req, res) => {
         res.json({ adminLeaveRequests });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch admin leave requests" });
+    }
+});
+
+app.get("/api/leave-request/:user_id", async (req, res) => {
+    const { user_id } = req.params;
+
+    try {
+        const leaveStatus = await prisma.leaveRequest.findMany({
+            where: {
+                user_id: user_id, // use correct field name from schema
+            }, orderBy: {
+                createdAt: 'desc',
+            }
+
+        });
+
+        res.json({ data: leaveStatus });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch leave requests", details: error.message });
     }
 });
 
@@ -358,11 +378,11 @@ app.get("/api/staff-leave-request", async (req, res) => {
                 }
             },
             include: {
-                user:{
+                user: {
                     select: {
                         userName: true,
                         position: true,
-                        role: true 
+                        role: true
                     }
                 }
             }
@@ -374,12 +394,7 @@ app.get("/api/staff-leave-request", async (req, res) => {
     }
 });
 
-  
-
-
-
-
 
 app.listen(9000, () => {
-    console.log("WEMEET SERVER STARTED.........")
+    console.log(`Wemeet Server Started PortNo:${9000}.....`)
 })
