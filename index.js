@@ -251,7 +251,7 @@ app.post('/api/attendance/status', async (req, res) => {
 });
 // Attendance - Check-out
 app.post('/api/attendance/check-out', async (req, res) => {
-    const { userId } = req.body;
+    const data = req.body;
     const now = new Date();
     const startOfDay = new Date(now.setHours(0, 0, 0, 0));
     const endOfDay = new Date(now.setHours(23, 59, 59, 999));
@@ -259,7 +259,7 @@ app.post('/api/attendance/check-out', async (req, res) => {
     try {
         const attendance = await prisma.attendance.findFirst({
             where: {
-                userId,
+                user_id:data.user_id,
                 date: {
                     gte: startOfDay,
                     lte: endOfDay,
@@ -272,7 +272,7 @@ app.post('/api/attendance/check-out', async (req, res) => {
         }
 
         const updated = await prisma.attendance.update({
-            where: { attendanceId: attendance.attendanceId }, // ✅ make sure this exists and is used
+            where: { attendance_id: attendance.attendance_id }, // ✅ make sure this exists and is used
             data: { checkOut: new Date() },
         });
 
