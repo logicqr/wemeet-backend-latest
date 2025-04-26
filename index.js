@@ -39,9 +39,6 @@ app.post("/api/register", async (req, res) => {
     const companyName = await prisma.company.create({
         data: {
             companyName: data.companyName,
-            officeLatitude: data.officeLatitude,
-            officeLongitude: data.officeLongitude,
-            allowedRadius: data.allowedRadius
         }
     })
     const companyRegister = await prisma.user.create({
