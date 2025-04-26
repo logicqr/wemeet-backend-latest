@@ -22,78 +22,85 @@ enum LeaveStatus {
   APPROVED
   REJECTED
 }
+
 model Company {
   company_id           String       @id @default(cuid())
-  companyName         String
-  createdAt    DateTime     @default(now())
-  users        User[]
+  companyName          String
+  officeLatitude       Float
+  officeLongitude      Float
+  allowedRadius        Int
+  createdAt            DateTime     @default(now())
+  users                User[]
 
 }
 
 model User {
-  user_id    String   @id @default(uuid())
-  userName   String
-  email      String   @unique
-  position   String
-  password   String
-  role       Role
-  company_id String
-  company    Company @relation(fields:[company_id],references:[company_id])
-  meeting    Meeting[]
-meetingParticipant MeetingParticipant[]
-attendance    Attendance[]
-leaveRequest  LeaveRequest[]
+  user_id              String   @id @default(uuid())
+  employee_id          String?
+  userName             String   
+  email                String   @unique
+  position             String
+  department           String?
+  password             String
+  role                 Role
+  mode                 String?
+  company_id           String
+  company              Company @relation(fields:[company_id],references:[company_id])
+  meeting              Meeting[]
+meetingParticipant     MeetingParticipant[]
+attendance             Attendance[]
+leaveRequest           LeaveRequest[]
 }
 
 
 
 model Meeting {
-  meeting_id  String   @id @default(uuid())
-  title       String
-  description String?
-  scheduledAt String
-  link        String
-  createdAt   DateTime @default(now())
-  user_id     String
-  user        User @relation(fields:[user_id],references:[user_id])
-  meetingParticipant MeetingParticipant[]
+  meeting_id            String   @id @default(uuid())
+  title                 String  
+  description           String?
+  scheduledAt           String
+  link                  String
+  createdAt             DateTime @default(now())
+  user_id               String
+  user                  User @relation(fields:[user_id],references:[user_id])
+  meetingParticipant    MeetingParticipant[]
 }
 
 model MeetingParticipant {
-  meetingparticipant_id        String   @id @default(uuid())
-  meeting_id String
-  user_id    String
-  meeting   Meeting  @relation(fields: [meeting_id], references: [meeting_id])
-  user      User     @relation(fields: [user_id], references: [user_id])
+  meetingparticipant_id String   @id @default(uuid())
+  meeting_id            String
+  user_id               String
+  meeting               Meeting  @relation(fields: [meeting_id], references: [meeting_id])
+  user                  User     @relation(fields: [user_id], references: [user_id])
 }
 
 model Attendance {
-  attendance_id String   @id @default(uuid())
-  date         DateTime
-  checkIn      DateTime?
-  checkOut     DateTime?
-  latitude     Float?       // Latitude coordinate
-  longitude    Float?       // Longitude coordinate
-  status       String        // PRESENT | ABSENT | ON_LEAVE | LATE
-  user_id       String  
-  user         User          @relation(fields: [user_id], references: [user_id])
+  attendance_id         String   @id @default(uuid())
+  date                  DateTime
+  checkIn               DateTime?
+  checkOut              DateTime?
+  latitude              Float?       // Latitude coordinate
+  longitude             Float?       // Longitude coordinate
+  status                String        // PRESENT | ABSENT | ON_LEAVE | LATE
+  report                String?  
+  user_id               String  
+  user                  User          @relation(fields: [user_id], references: [user_id])
 }
 
 model LeaveRequest {
-  leave_id     String      @id @default(uuid())     
-  startDate   String
-  endDate     String
-  reason      String
-  status      LeaveStatus @default(PENDING)
-  approvedBy  String?  
-  createdAt   DateTime    @default(now())
-  user_id      String @unique
-  user        User        @relation(fields: [user_id], references: [user_id])
+  leave_id              String      @id @default(uuid())     
+  startDate             String
+  endDate               String
+  reason                String
+  status                LeaveStatus @default(PENDING)
+  approvedBy            String?  
+  createdAt             DateTime    @default(now())
+  user_id               String @unique
+  user                  User        @relation(fields: [user_id], references: [user_id])
 }
 
 
-
 model Token {
-  token_id String @unique @id @default(cuid())
-  refreshToken String
+  token_id             String @unique @id @default(cuid())
+  refreshToken         String
 }

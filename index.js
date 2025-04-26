@@ -38,7 +38,10 @@ app.post("/api/register", async (req, res) => {
     }
     const companyName = await prisma.company.create({
         data: {
-            companyName: data.companyName
+            companyName: data.companyName,
+            officeLatitude: data.officeLatitude,
+            officeLongitude: data.officeLongitude,
+            allowedRadius: data.allowedRadius
         }
     })
     const companyRegister = await prisma.user.create({
@@ -58,6 +61,44 @@ app.post("/api/register", async (req, res) => {
     })
 })
 
+
+// utils/generateUniqueID.js
+async function generateUniqueID(companyName, prisma) {
+    const vowels = ['A', 'E', 'I', 'O', 'U'];
+
+    const firstLetter = companyName[0]?.toUpperCase() || '';
+    let secondLetter = '';
+    for (let i = 1; i < companyName.length; i++) {
+        const letter = companyName[i]?.toUpperCase();
+        if (letter && !vowels.includes(letter)) {
+            secondLetter = letter;
+            break;
+        }
+    }
+
+    const year = new Date().getFullYear().toString().slice(-2);
+    let employee_id;
+    let exists = true;
+
+    while (exists) {
+        const randomDigits = Math.floor(10000 + Math.random() * 90000); // 5-digit number
+        employee_id = `${firstLetter}${secondLetter}${year}${randomDigits}`;
+
+        const existingUser = await prisma.user.findFirst({
+            where: { employee_id }
+        });
+
+        if (!existingUser) {
+            exists = false; // unique ID found
+        }
+    }
+
+    return employee_id;
+}
+// // Example usage
+// console.log(generateUniqueID("jaromjery",prisma)); 
+
+
 app.post("/api/add-user", async (req, res) => {
     const data = req.body;
     const isExistingUser = await prisma.user.findUnique({
@@ -68,20 +109,33 @@ app.post("/api/add-user", async (req, res) => {
     if (isExistingUser) {
         return res.status(400).json({ message: "User Already Exists" });
     }
+
+    const company = await prisma.company.findUnique({
+        where: { company_id: data.company_id }
+    });
+
+    if (company) {
+        const uniqueID = await generateUniqueID(company.companyName, prisma);
+    
     const addUser = await prisma.user.create({
         data: {
             userName: data.userName,
+            employee_id: uniqueID,
             email: data.email,
+            department: data.department,
             position: data.position,
             password: data.password,
+            mode: data.mode,
             role: data.role,
             company_id: data.company_id
         }
     })
+    const { password, ...userWithoutPassword } = addUser;
+
     res.json({
-        data: addUser
+        data: userWithoutPassword
     })
-})
+}})
 
 app.post("/api/all-users", async (req, res) => {
     try {
@@ -259,7 +313,7 @@ app.post('/api/attendance/check-out', async (req, res) => {
     try {
         const attendance = await prisma.attendance.findFirst({
             where: {
-                user_id:data.user_id,
+                user_id: data.user_id,
                 date: {
                     gte: startOfDay,
                     lte: endOfDay,
@@ -267,16 +321,23 @@ app.post('/api/attendance/check-out', async (req, res) => {
             },
         });
 
+        if (!report) {
+            return res.status(400).json({ message: 'Work report is required for checkout.' });
+        }
+
         if (!attendance) {
             return res.status(404).json({ message: 'No check-in found for today.' });
         }
 
         const updated = await prisma.attendance.update({
             where: { attendance_id: attendance.attendance_id }, // ✅ make sure this exists and is used
-            data: { checkOut: new Date() },
+            data: {
+                checkOut: new Date(),
+                report: report
+            },
         });
 
-        res.json(updated);
+        res.json({ message: "Checkout successful.", data: updated });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to check out.' });
@@ -341,7 +402,7 @@ app.get("/api/admin-leave-request", async (req, res) => {
                         role: true
                     }
                 }
-            },orderBy: {
+            }, orderBy: {
                 createdAt: 'desc' // optional sorting
             }
         });
@@ -395,6 +456,8 @@ app.get("/api/staff-leave-request", async (req, res) => {
         res.status(500).json({ error: "Failed to fetch staff leave requests" });
     }
 });
+
+
 
 
 app.listen(9000, () => {
