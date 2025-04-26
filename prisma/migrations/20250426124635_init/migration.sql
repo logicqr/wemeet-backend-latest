@@ -8,6 +8,9 @@ CREATE TYPE "LeaveStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 CREATE TABLE "Company" (
     "company_id" TEXT NOT NULL,
     "companyName" TEXT NOT NULL,
+    "officeLatitude" DOUBLE PRECISION,
+    "officeLongitude" DOUBLE PRECISION,
+    "allowedRadius" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Company_pkey" PRIMARY KEY ("company_id")
@@ -16,11 +19,14 @@ CREATE TABLE "Company" (
 -- CreateTable
 CREATE TABLE "User" (
     "user_id" TEXT NOT NULL,
+    "employee_id" TEXT,
     "userName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "position" TEXT NOT NULL,
+    "department" TEXT,
     "password" TEXT NOT NULL,
     "role" "Role" NOT NULL,
+    "mode" TEXT,
     "company_id" TEXT NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("user_id")
@@ -57,6 +63,7 @@ CREATE TABLE "Attendance" (
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
     "status" TEXT NOT NULL,
+    "report" TEXT,
     "user_id" TEXT NOT NULL,
 
     CONSTRAINT "Attendance_pkey" PRIMARY KEY ("attendance_id")
@@ -86,6 +93,9 @@ CREATE TABLE "Token" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LeaveRequest_user_id_key" ON "LeaveRequest"("user_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Token_token_id_key" ON "Token"("token_id");
