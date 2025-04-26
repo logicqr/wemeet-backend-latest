@@ -61,7 +61,8 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/settings", async (req, res) => {
     try {
       const data = req.body;
-      console.log(data)
+      
+      
   
       const updateSettings = await prisma.company.update({
         where: {
