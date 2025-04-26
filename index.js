@@ -61,7 +61,6 @@ app.post("/api/register", async (req, res) => {
 app.put("/api/settings", async (req, res) => {
     try {
       const data = req.body;
-      console.log(data)
   
       const updateSettings = await prisma.company.update({
         where: {
@@ -126,6 +125,7 @@ async function generateUniqueID(companyName, prisma) {
 
 app.post("/api/add-user", async (req, res) => {
     const data = req.body;
+    console.log(data)
     const isExistingUser = await prisma.user.findUnique({
         where: {
             email: data.email
@@ -138,7 +138,7 @@ app.post("/api/add-user", async (req, res) => {
     const company = await prisma.company.findUnique({
         where: { company_id: data.company_id }
     });
-
+console.log(company)
     if (company) {
         const uniqueID = await generateUniqueID(company.companyName, prisma);
     
