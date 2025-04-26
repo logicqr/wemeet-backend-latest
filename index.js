@@ -58,6 +58,33 @@ app.post("/api/register", async (req, res) => {
     })
 })
 
+app.post("/api/settings", async (req, res) => {
+    try {
+      const data = req.body;
+  
+      const updateSettings = await prisma.company.update({
+        where: {
+          company_id: data.company_id,
+        },
+        data: {
+          officeLatitude: data.officeLatitude,  // <-- Corrected
+          officeLongitude: data.officeLongitude,
+          allowedRadius: data.allowedRadius,
+        },
+      });
+  
+      res.status(200).json({
+        message: "Company settings updated successfully!",
+        company: updateSettings
+      });
+      
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Something went wrong" });
+    }
+  });
+  
+
 
 // utils/generateUniqueID.js
 async function generateUniqueID(companyName, prisma) {
