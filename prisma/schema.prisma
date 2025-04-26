@@ -35,7 +35,7 @@ model Company {
 }
 
 model User {
-  user_id              String   @id @default(uuid())
+  user_id              String  @unique @id @default(uuid())
   employee_id          String?
   userName             String   
   email                String   @unique
@@ -55,7 +55,7 @@ leaveRequest           LeaveRequest[]
 
 
 model Meeting {
-  meeting_id            String   @id @default(uuid())
+  meeting_id            String  @unique @id @default(uuid())
   title                 String  
   description           String?
   scheduledAt           String
@@ -67,7 +67,7 @@ model Meeting {
 }
 
 model MeetingParticipant {
-  meetingparticipant_id String   @id @default(uuid())
+  meetingparticipant_id String @unique   @id @default(uuid())
   meeting_id            String
   user_id               String
   meeting               Meeting  @relation(fields: [meeting_id], references: [meeting_id])
@@ -75,7 +75,7 @@ model MeetingParticipant {
 }
 
 model Attendance {
-  attendance_id         String   @id @default(uuid())
+  attendance_id         String @unique  @id @default(uuid())
   date                  DateTime
   checkIn               DateTime?
   checkOut              DateTime?
@@ -88,7 +88,7 @@ model Attendance {
 }
 
 model LeaveRequest {
-  leave_id              String      @id @default(uuid())     
+  leave_id              String   @unique   @id @default(uuid())     
   startDate             String
   endDate               String
   reason                String

@@ -63,7 +63,7 @@ app.post("/api/settings", async (req, res) => {
       const data = req.body;
       console.log(data)
   
-      const updateSettings = await prisma.company.update({
+      const updateSettings = await prisma.company.create({
         where: {
           company_id: data.company_id,
         },
