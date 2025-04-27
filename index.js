@@ -175,6 +175,7 @@ app.post("/api/all-users", async (req, res) => {
             select: {
                 user_id: true,
                 userName: true,
+                department:true,
                 position: true,
                 role: true,
             }
@@ -265,46 +266,160 @@ app.post("/api/my-meetings", async (req, res) => {
     }
 });
 
-app.post('/api/attendance/check-in', async (req, res) => {
-    const data = req.body;
-    const now = new Date();
-    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+// app.post('/api/attendance/check-in', async (req, res) => {
+//     const data = req.body;
+//     const now = new Date();
+//     const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+//     const endOfDay = new Date(now.setHours(23, 59, 59, 999));
 
+//     try {
+//         const existing = await prisma.attendance.findFirst({
+//             where: {
+//                 user_id: data.user_id,
+//                 date: {
+//                     gte: startOfDay,
+//                     lte: endOfDay,
+//                 },
+//             },
+//         });
+//         console.log(existing)
+
+//         if (existing) {
+//             return res.status(400).json({ message: 'Already checked in today.' });
+//         }
+
+//         const attendance = await prisma.attendance.create({
+//             data: {
+//                 user_id: data.user_id,
+//                 date: new Date(),
+//                 checkIn: new Date(),
+//                 latitude: data.latitude,
+//                 longitude: data.longitude,
+//                 status: 'PRESENT',
+//             },
+//         });
+
+//         res.json(attendance);
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ error: 'Failed to check in.' });
+//     }
+// });
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in kilometers
+}
+app.post('/api/check-in', async (req, res) => {
     try {
-        const existing = await prisma.attendance.findFirst({
-            where: {
-                user_id: data.user_id,
-                date: {
-                    gte: startOfDay,
-                    lte: endOfDay,
-                },
-            },
-        });
-        console.log(existing)
-
-        if (existing) {
-            return res.status(400).json({ message: 'Already checked in today.' });
+      const { user_id, currentLongitude, currentLatitude } = req.body;
+  
+      if (!user_id || !currentLongitude || !currentLatitude) {
+        return res.status(400).json({ message: "User ID and location are required" });
+      }
+  
+      const user = await prisma.user.findUnique({
+        where: { user_id: user_id },  // your User model uses user_id
+      });
+  console.log(user)
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // for today's record (same day)
+  
+      // Check if already checked-in today
+      const existingAttendance = await prisma.attendance.findFirst({
+        where: {
+          user_id: user_id,
+          date: today,
         }
-
+      });
+  
+      if (existingAttendance) {
+        return res.status(400).json({ message: "Already checked-in today" });
+      }
+      console.log(user.mode)
+  
+      if (user.mode === "work_from_home") {
         const attendance = await prisma.attendance.create({
-            data: {
-                user_id: data.user_id,
-                date: new Date(),
-                checkIn: new Date(),
-                latitude: data.latitude,
-                longitude: data.longitude,
-                status: 'PRESENT',
-            },
+          data: {
+            user_id: user.user_id,
+            date: new Date(),
+            checkIn: new Date(),
+            latitude: parseFloat(currentLatitude),
+            longitude: parseFloat(currentLongitude),
+            status: "PRESENT",
+            report: "Work from home"
+          }
         });
-
-        res.json(attendance);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to check in.' });
+  
+        return res.json({
+          message: "Check-in successful for Work From Home",
+          data: attendance
+        });
+      }
+  
+      if (user.mode === "work_from_office") {
+        const company = user.Company;
+  
+        if (!company || !company.officeLatitude || !company.officeLongitude) {
+          return res.status(400).json({ message: "Company office location not set" });
+        }
+  
+        const distance = calculateDistance(
+          parseFloat(currentLatitude),
+          parseFloat(currentLongitude),
+          company.officeLatitude,
+          company.officeLongitude
+        );
+  
+        const distanceInMeters = distance * 1000;
+  
+        let status = distanceInMeters <= company.allowedRadius ? "PRESENT" : "ABSENT";
+        let report = status === "PRESENT"
+          ? "Checked-in within allowed radius"
+          : `Checked-in but ${Math.round(distanceInMeters)} meters away from allowed radius`;
+  
+        const attendance = await prisma.attendance.create({
+          data: {
+            user_id: user.user_id,
+            date: new Date(),
+            checkIn: new Date(),
+            latitude: parseFloat(currentLatitude),
+            longitude: parseFloat(currentLongitude),
+            status: status,
+            report: report
+          }
+        });
+  
+        return res.json({
+          status,
+          message: report,
+          data: attendance
+        });
+      }
+  
+      res.status(400).json({ message: "Invalid work mode" });
+    } catch (error) {
+      console.error("Check-in error:", error);
+      res.status(500).json({ message: "Server error during check-in" });
     }
-});
+  });
+  
+  
 // Attendance - Status
+
 app.post('/api/attendance/status', async (req, res) => {
     const { userId } = req.body;
     const now = new Date();
@@ -345,22 +460,26 @@ app.post('/api/attendance/check-out', async (req, res) => {
                 },
             },
         });
+        
 
-        if (!report) {
+        if (!data.report) {
             return res.status(400).json({ message: 'Work report is required for checkout.' });
         }
 
         if (!attendance) {
             return res.status(404).json({ message: 'No check-in found for today.' });
         }
+      
 
         const updated = await prisma.attendance.update({
             where: { attendance_id: attendance.attendance_id }, // ✅ make sure this exists and is used
             data: {
                 checkOut: new Date(),
-                report: report
+                report: data.report
             },
         });
+
+
 
         res.json({ message: "Checkout successful.", data: updated });
     } catch (err) {
@@ -482,8 +601,82 @@ app.get("/api/staff-leave-request", async (req, res) => {
     }
 });
 
-
-
+app.get('/api/user-report/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { startDate, endDate } = req.query;
+  
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "Start date and end date are required" });
+    }
+  
+    try {
+      const fromDate = new Date(startDate);
+      const toDate = new Date(endDate);
+  
+      const userReport = await prisma.user.findUnique({
+        where: { user_id: userId },
+        select: {
+          userName: true,
+          email: true,
+          position: true,
+          department: true,
+          attendance: {
+            where: {
+              date: {
+                gte: fromDate,
+                lte: toDate,
+              },
+            },
+            select: {
+              attendance_id: true,
+              date: true,
+              checkIn: true,
+              checkOut: true,
+              latitude: true,
+              longitude: true,
+              status: true,
+              report: true,
+            },
+          },
+          leaveRequest: {
+            where: {
+              OR: [
+                {
+                  startDate: { gte: startDate, lte: endDate },
+                },
+                {
+                  endDate: { gte: startDate, lte: endDate },
+                },
+                {
+                  startDate: { lte: startDate },
+                  endDate: { gte: endDate },
+                }
+              ],
+            },
+            select: {
+              leave_id: true,
+              startDate: true,
+              endDate: true,
+              reason: true,
+              status: true,
+              approvedBy: true,
+              createdAt: true,
+            },
+          },
+        },
+      });
+  
+      if (!userReport) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      res.json(userReport);
+  
+    } catch (error) {
+      console.error("Error fetching user report:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
 
 app.listen(9000, () => {
     console.log(`Wemeet Server Started PortNo:${9000}.....`)
