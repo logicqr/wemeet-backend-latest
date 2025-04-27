@@ -317,105 +317,110 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
         Math.sin(dLon / 2) *
         Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    
     return R * c; // Distance in kilometers
+    
 }
 app.post('/api/check-in', async (req, res) => {
     try {
-      const { user_id, currentLongitude, currentLatitude } = req.body;
-  
-      if (!user_id || !currentLongitude || !currentLatitude) {
-        return res.status(400).json({ message: "User ID and location are required" });
-      }
-  
-      const user = await prisma.user.findUnique({
-        where: { user_id: user_id },  // your User model uses user_id
-      });
-  console.log(user)
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-  
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // for today's record (same day)
-  
-      // Check if already checked-in today
-      const existingAttendance = await prisma.attendance.findFirst({
-        where: {
-          user_id: user_id,
-          date: today,
+        const { user_id, currentLongitude, currentLatitude } = req.body;
+
+        if (!user_id || !currentLongitude || !currentLatitude) {
+            return res.status(400).json({ message: "User ID and location are required" });
         }
-      });
-  
-      if (existingAttendance) {
-        return res.status(400).json({ message: "Already checked-in today" });
-      }
-      console.log(user.mode)
-  
-      if (user.mode === "work_from_home") {
-        const attendance = await prisma.attendance.create({
-          data: {
-            user_id: user.user_id,
-            date: new Date(),
-            checkIn: new Date(),
-            latitude: parseFloat(currentLatitude),
-            longitude: parseFloat(currentLongitude),
-            status: "PRESENT",
-            report: "Work from home"
-          }
+
+        const user = await prisma.user.findUnique({
+            where: { user_id: user_id },
         });
-  
-        return res.json({
-          message: "Check-in successful for Work From Home",
-          data: attendance
-        });
-      }
-  
-      if (user.mode === "work_from_office") {
-        const company = user.Company;
-  
-        if (!company || !company.officeLatitude || !company.officeLongitude) {
-          return res.status(400).json({ message: "Company office location not set" });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
-  
-        const distance = calculateDistance(
-          parseFloat(currentLatitude),
-          parseFloat(currentLongitude),
-          company.officeLatitude,
-          company.officeLongitude
-        );
-  
-        const distanceInMeters = distance * 1000;
-  
-        let status = distanceInMeters <= company.allowedRadius ? "PRESENT" : "ABSENT";
-        let report = status === "PRESENT"
-          ? "Checked-in within allowed radius"
-          : `Checked-in but ${Math.round(distanceInMeters)} meters away from allowed radius`;
-  
-        const attendance = await prisma.attendance.create({
-          data: {
-            user_id: user.user_id,
-            date: new Date(),
-            checkIn: new Date(),
-            latitude: parseFloat(currentLatitude),
-            longitude: parseFloat(currentLongitude),
-            status: status,
-            report: report
-          }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Check if already checked-in today
+        const existingAttendance = await prisma.attendance.findFirst({
+            where: {
+                user_id: user_id,
+                date: today,
+            }
         });
-  
-        return res.json({
-          status,
-          message: report,
-          data: attendance
-        });
-      }
-  
-      res.status(400).json({ message: "Invalid work mode" });
+
+        if (existingAttendance) {
+            return res.status(400).json({ message: "Already checked-in today" });
+        }
+
+        if (user.mode === "work_from_home") {
+            const attendance = await prisma.attendance.create({
+                data: {
+                    user_id: user.user_id,
+                    date: new Date(),
+                    checkIn: new Date(),
+                    latitude: parseFloat(currentLatitude),
+                    longitude: parseFloat(currentLongitude),
+                    status: "PRESENT",
+                    report: "Work from home"
+                }
+            });
+
+            return res.json({
+                message: "Check-in successful for Work From Home",
+                data: attendance
+            });
+        }
+
+        if (user.mode === "work_from_office") {
+            const company = await prisma.company.findUnique({
+                where: { company_id: user.company_id }
+            });
+
+            if (!company || !company.officeLatitude || !company.officeLongitude) {
+                return res.status(400).json({ message: "Company office location not set" });
+            }
+
+            const distance = calculateDistance(
+                parseFloat(currentLatitude),
+                parseFloat(currentLongitude),
+                company.officeLatitude,
+                company.officeLongitude
+            );
+
+            const distanceInMeters = distance * 1000;
+            // console.log(distanceInMeters)
+
+            if (distanceInMeters > company.allowedRadius) {
+                return res.status(400).json({ 
+                    message: `Check-In failed. You are ${Math.round(distanceInMeters)} meters away, allowed is ${company.allowedRadius} meters.` 
+                });
+            }
+
+            const attendance = await prisma.attendance.create({
+                data: {
+                    user_id: user.user_id,
+                    date: new Date(),
+                    checkIn: new Date(),
+                    latitude: parseFloat(currentLatitude),
+                    longitude: parseFloat(currentLongitude),
+                    status: "PRESENT",
+                    report: "Checked in at office"
+                }
+            });
+
+            return res.json({
+                message: "Check-in successful at office",
+                data: attendance
+            });
+        }
+
+        res.status(400).json({ message: "Invalid work mode" });
+
     } catch (error) {
-      console.error("Check-in error:", error);
-      res.status(500).json({ message: "Server error during check-in" });
+        console.error("Check-in error:", error);
+        res.status(500).json({ message: "Server error during check-in" });
     }
-  });
+});
   
   
 // Attendance - Status
