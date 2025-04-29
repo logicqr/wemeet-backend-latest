@@ -1,5 +1,6 @@
 const express = require("express")
 const cors = require("cors")
+const jwt = require("jsonwebtoken")
 const { PrismaClient } = require("@prisma/client");
 const app = express()
 const prisma = new PrismaClient()
@@ -58,32 +59,105 @@ app.post("/api/register", async (req, res) => {
     })
 })
 
+app.post("/api/login", async (req, res) => {
+    const data = req.body;
+    const isExistingUser = await prisma.user.findUnique({
+        where: {
+            email: data.email
+        }
+    })
+    if (isExistingUser) {
+        if (isExistingUser.password === data.password) {
+            var accessToken = jwt.sign({
+                user_id: isExistingUser.user_id,
+                role: isExistingUser.role
+            }, 'jaromjery',
+                { expiresIn: "24h" });
+
+            var refreshToken = jwt.sign({
+                user_id: isExistingUser.user_id,
+                role: isExistingUser.role
+            }, 'jaromjery',
+                { expiresIn: "7d" });
+
+            await prisma.token.create({
+                data: {
+                    refreshToken: refreshToken
+                }
+            })
+
+            return res.status(200).json({
+                message: "Login successful",
+                data: {
+                    accessToken,
+                    refreshToken
+                }
+            });
+        } else {
+            return res.status(401).json({ message: "Incorrect password" });
+        }
+    } else {
+        return res.status(404).json({ message: "User not found" });
+    }
+})
+
+app.post("/api/refresh", async (req, res) => {
+    const data = req.body;
+    const tokenValid = await prisma.token.findFirst({
+        where: {
+            refreshToken: data.refreshToken
+        }
+    })
+    if (tokenValid) {
+        jwt.verify(tokenValid.refreshToken, 'jaromjery', function (err, decoded) {
+            if (!err) {
+                var accessToken = jwt.sign({
+                    user_id: tokenValid.user_id,
+                    role: decoded.role
+                }, 'jaromjery',
+                    { expiresIn: "24h" });
+                return res.json({
+                    accessToken: accessToken
+                })
+            } else {
+                return res.json({
+                    message: "Token is Invalid"
+                })
+            }
+        });
+    } else {
+        return res.json({
+            message: "Token Not Found"
+        })
+    }
+})
+
 app.put("/api/settings", async (req, res) => {
     try {
-      const data = req.body;
-  
-      const updateSettings = await prisma.company.update({
-        where: {
-          company_id: data.company_id,
-        },
-        data: {
-          officeLatitude: data.officeLatitude,  // <-- Corrected
-          officeLongitude: data.officeLongitude,
-          allowedRadius: data.allowedRadius,
-        },
-      });
-  
-      res.status(200).json({
-        message: "Company settings updated successfully!",
-        company: updateSettings
-      });
-      
+        const data = req.body;
+
+        const updateSettings = await prisma.company.update({
+            where: {
+                company_id: data.company_id,
+            },
+            data: {
+                officeLatitude: data.officeLatitude,  // <-- Corrected
+                officeLongitude: data.officeLongitude,
+                allowedRadius: data.allowedRadius,
+            },
+        });
+
+        res.status(200).json({
+            message: "Company settings updated successfully!",
+            company: updateSettings
+        });
+
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Something went wrong" });
+        console.error(error);
+        res.status(500).json({ message: "Something went wrong" });
     }
-  });
-  
+});
+
 
 
 // utils/generateUniqueID.js
@@ -138,29 +212,30 @@ app.post("/api/add-user", async (req, res) => {
     const company = await prisma.company.findUnique({
         where: { company_id: data.company_id }
     });
-console.log(company)
+    console.log(company)
     if (company) {
         const uniqueID = await generateUniqueID(company.companyName, prisma);
-    
-    const addUser = await prisma.user.create({
-        data: {
-            userName: data.userName,
-            employee_id: uniqueID,
-            email: data.email,
-            department: data.department,
-            position: data.position,
-            password: data.password,
-            mode: data.mode,
-            role: data.role,
-            company_id: data.company_id
-        }
-    })
-    const { password, ...userWithoutPassword } = addUser;
 
-    res.json({
-        data: userWithoutPassword
-    })
-}})
+        const addUser = await prisma.user.create({
+            data: {
+                userName: data.userName,
+                employee_id: uniqueID,
+                email: data.email,
+                department: data.department,
+                position: data.position,
+                password: data.password,
+                mode: data.mode,
+                role: data.role,
+                company_id: data.company_id
+            }
+        })
+        const { password, ...userWithoutPassword } = addUser;
+
+        res.json({
+            data: userWithoutPassword
+        })
+    }
+})
 
 app.post("/api/all-users", async (req, res) => {
     try {
@@ -175,7 +250,7 @@ app.post("/api/all-users", async (req, res) => {
             select: {
                 user_id: true,
                 userName: true,
-                department:true,
+                department: true,
                 position: true,
                 role: true,
             }
@@ -310,16 +385,16 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of the Earth in km
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = 
+    const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(lat1 * (Math.PI / 180)) *
         Math.cos(lat2 * (Math.PI / 180)) *
         Math.sin(dLon / 2) *
         Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
+
     return R * c; // Distance in kilometers
-    
+
 }
 app.post('/api/check-in', async (req, res) => {
     try {
@@ -386,13 +461,12 @@ app.post('/api/check-in', async (req, res) => {
                 company.officeLatitude,
                 company.officeLongitude
             );
-
             const distanceInMeters = distance * 1000;
             // console.log(distanceInMeters)
 
             if (distanceInMeters > company.allowedRadius) {
-                return res.status(400).json({ 
-                    message: `Check-In failed. You are ${Math.round(distanceInMeters)} meters away, allowed is ${company.allowedRadius} meters.` 
+                return res.status(400).json({
+                    message: `Check-In failed. You are ${Math.round(distanceInMeters)} meters away, allowed is ${company.allowedRadius} meters.`
                 });
             }
 
@@ -421,12 +495,11 @@ app.post('/api/check-in', async (req, res) => {
         res.status(500).json({ message: "Server error during check-in" });
     }
 });
-  
-  
-// Attendance - Status
 
+
+// Attendance - Status
 app.post('/api/attendance/status', async (req, res) => {
-    const { userId } = req.body;
+    const data = req.body;
     const now = new Date();
     const startOfDay = new Date(now.setHours(0, 0, 0, 0));
     const endOfDay = new Date(now.setHours(23, 59, 59, 999));
@@ -434,7 +507,7 @@ app.post('/api/attendance/status', async (req, res) => {
     try {
         const attendanceStatus = await prisma.attendance.findFirst({
             where: {
-                userId,
+                user_id: data.user_id,
                 date: {
                     gte: startOfDay,
                     lte: endOfDay,
@@ -465,7 +538,7 @@ app.post('/api/attendance/check-out', async (req, res) => {
                 },
             },
         });
-        
+
 
         if (!data.report) {
             return res.status(400).json({ message: 'Work report is required for checkout.' });
@@ -474,7 +547,7 @@ app.post('/api/attendance/check-out', async (req, res) => {
         if (!attendance) {
             return res.status(404).json({ message: 'No check-in found for today.' });
         }
-      
+
 
         const updated = await prisma.attendance.update({
             where: { attendance_id: attendance.attendance_id }, // ✅ make sure this exists and is used
@@ -495,6 +568,7 @@ app.post('/api/attendance/check-out', async (req, res) => {
 
 app.post('/api/leave-request', async (req, res) => {
     const data = req.body;
+
     const createLeaveRequest = await prisma.leaveRequest.create({
         data: {
             startDate: data.startDate,
@@ -503,6 +577,7 @@ app.post('/api/leave-request', async (req, res) => {
             user_id: data.user_id
         }
     })
+   
     res.json({
         data: createLeaveRequest
     })
@@ -609,79 +684,80 @@ app.get("/api/staff-leave-request", async (req, res) => {
 app.get('/api/user-report/:userId', async (req, res) => {
     const { userId } = req.params;
     const { startDate, endDate } = req.query;
-  
+
     if (!startDate || !endDate) {
-      return res.status(400).json({ message: "Start date and end date are required" });
+        return res.status(400).json({ message: "Start date and end date are required" });
     }
-  
+
     try {
-      const fromDate = new Date(startDate);
-      const toDate = new Date(endDate);
-  
-      const userReport = await prisma.user.findUnique({
-        where: { user_id: userId },
-        select: {
-          userName: true,
-          email: true,
-          position: true,
-          department: true,
-          attendance: {
-            where: {
-              date: {
-                gte: fromDate,
-                lte: toDate,
-              },
-            },
+        const fromDate = new Date(startDate);
+        const toDate = new Date(endDate);
+        toDate.setHours(23, 59, 59, 999);
+
+        const userReport = await prisma.user.findUnique({
+            where: { user_id: userId },
             select: {
-              attendance_id: true,
-              date: true,
-              checkIn: true,
-              checkOut: true,
-              latitude: true,
-              longitude: true,
-              status: true,
-              report: true,
-            },
-          },
-          leaveRequest: {
-            where: {
-              OR: [
-                {
-                  startDate: { gte: startDate, lte: endDate },
+                userName: true,
+                email: true,
+                position: true,
+                department: true,
+                attendance: {
+                    where: {
+                        date: {
+                            gte: fromDate,
+                            lte: toDate,
+                        },
+                    },
+                    select: {
+                        attendance_id: true,
+                        date: true,
+                        checkIn: true,
+                        checkOut: true,
+                        latitude: true,
+                        longitude: true,
+                        status: true,
+                        report: true,
+                    },
                 },
-                {
-                  endDate: { gte: startDate, lte: endDate },
+                leaveRequest: {
+                    where: {
+                        OR: [
+                            {
+                                startDate: { gte: startDate, lte: endDate },
+                            },
+                            {
+                                endDate: { gte: startDate, lte: endDate },
+                            },
+                            {
+                                startDate: { lte: startDate },
+                                endDate: { gte: endDate },
+                            }
+                        ],
+                    },
+                    select: {
+                        leave_id: true,
+                        startDate: true,
+                        endDate: true,
+                        reason: true,
+                        status: true,
+                        approvedBy: true,
+                        createdAt: true,
+                    },
                 },
-                {
-                  startDate: { lte: startDate },
-                  endDate: { gte: endDate },
-                }
-              ],
             },
-            select: {
-              leave_id: true,
-              startDate: true,
-              endDate: true,
-              reason: true,
-              status: true,
-              approvedBy: true,
-              createdAt: true,
-            },
-          },
-        },
-      });
-  
-      if (!userReport) {
-        return res.status(404).json({ message: "User not found" });
-      }
-  
-      res.json(userReport);
-  
+        });
+
+        if (!userReport) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(userReport);
+
     } catch (error) {
-      console.error("Error fetching user report:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error fetching user report:", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
-  });
+});
 
 app.listen(9000, () => {
     console.log(`Wemeet Server Started PortNo:${9000}.....`)
