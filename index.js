@@ -721,35 +721,37 @@ app.get('/api/user-report/:userId', async (req, res) => {
 
 
 // cron.schedule('* * * * *', async () => {
-//     console.log('⏰ Running attendance cron job');
+    
+  app.post("/jaromjery",async(req,res)=>{
+
+    console.log('⏰ Running attendance cron job');
+    try {
+      const users = await prisma.user.findMany();
   
-//     try {
-//       const users = await prisma.user.findMany();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to 12:00 AM of today
+      console.log(today)
   
-//       const today = new Date();
-//       today.setHours(0, 0, 0, 0); // Set to 12:00 AM of today
-//       console.log(today)
+      const attendanceData = users.map(user => ({
+        user_id: user.user_id,
+        date: today,
+        status: 'ABSENT',
+        checkIn: null,
+        checkOut: null
+      }));
   
-//       const attendanceData = users.map(user => ({
-//         user_id: user.user_id,
-//         date: today,
-//         status: 'ABSENT',
-//         checkIn: null,
-//         checkOut: null
-//       }));
+      await prisma.attendance.createMany({
+        data: attendanceData,
+        skipDuplicates: true,
+      });
   
-//       await prisma.attendance.createMany({
-//         data: attendanceData,
-//         skipDuplicates: true,
-//       });
+      console.log('✅ Attendance created for all users');
+    } catch (error) {
+      console.error('❌ Error in cron job:', error);
+    }
+ // });
   
-//       console.log('✅ Attendance created for all users');
-//     } catch (error) {
-//       console.error('❌ Error in cron job:', error);
-//     }
-//   });
-  
-  
+})
 
 
 
