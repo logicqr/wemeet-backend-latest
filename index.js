@@ -8,25 +8,29 @@ const prisma = new PrismaClient()
 app.use(cors())
 app.use(express.json())
 
-// app.post("/api/create-plan", async (req, res) => {
-//     const data = req.body;
-//     const createPlan = await prisma.plans.create({
-//         data: {
-//             billingCycle: data.billingCycle,
-//             price: data.price,
-//             durationInDays: data.durationInDays
-//         }
-//     })
-//     res.json({
-//         data: createPlan
-//     })
-// })
-// app.get("/api/plans", async (req, res) => {
-//     const allPlans = await prisma.plans.findMany()
-//     res.json({
-//         data: allPlans
-//     })
-// })
+app.post("/api/create-plan", async (req, res) => {
+    const data = req.body;
+    const createPlan = await prisma.plans.create({
+        data: {
+            name:data.name,
+            amount:data.amount,
+            duration:data.duration,
+            type:data.type
+        }
+    })
+    res.json({
+        data: createPlan
+    })
+})
+
+
+
+app.get("/api/plans", async (req, res) => {
+    const allPlans = await prisma.plans.findMany()
+    res.json({
+        data: allPlans
+    })
+})
 
 app.post("/api/register", async (req, res) => {
     const data = req.body;
@@ -196,7 +200,6 @@ async function generateUniqueID(companyName, prisma) {
 // // Example usage
 // console.log(generateUniqueID("jaromjery",prisma)); 
 
-
 app.post("/api/add-user", async (req, res) => {
     const data = req.body;
     console.log(data)
@@ -246,6 +249,7 @@ app.post("/api/all-users", async (req, res) => {
         const getAllUsers = await prisma.user.findMany({
             where: {
                 company_id: data.company_id,
+                
             },
             select: {
                 user_id: true,
@@ -256,12 +260,15 @@ app.post("/api/all-users", async (req, res) => {
             }
         });
 
+        console.log(getAllUsers)
+
         res.json(getAllUsers);
     } catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
 // one problem the create userid is not mentioned
 app.post("/api/create-meeting", async (req, res) => {
     try {
@@ -718,6 +725,34 @@ app.get('/api/user-report/:userId', async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
+app.get('/api/company', async (req, res) => {
+    try {
+      const getAllUser = await prisma.user.findMany({
+        where: {
+          role: 'SUPER_ADMIN',
+        },
+        select: {
+          userName: true,
+          email: true,
+          company: {
+            select: {
+              companyName: true,
+            }
+          }
+        }
+      }); 
+      res.json(getAllUser);
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+  
+    
+
+   
+
 
 
 // cron.schedule('* * * * *', async () => {
