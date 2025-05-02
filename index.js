@@ -8,6 +8,8 @@ const prisma = new PrismaClient()
 app.use(cors())
 app.use(express.json())
 
+// create plan , update , get.............................................
+
 app.post("/api/create-plan", async (req, res) => {
     const data = req.body;
     const createPlan = await prisma.plans.create({
@@ -71,6 +73,8 @@ app.get("/api/plans", async (req, res) => {
         data: allPlans
     })
 })
+
+//.............................................
 
 app.post("/api/register", async (req, res) => {
     const data = req.body;
