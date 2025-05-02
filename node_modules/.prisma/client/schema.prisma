@@ -30,6 +30,7 @@ model Plans {
   duration      Int // in days: e.g., 30 or 365
   type          String
   createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   subscriptions Subscription[] // one-to-many: multiple companies can subscribe to this plan
 }
 

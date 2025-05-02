@@ -23,7 +23,47 @@ app.post("/api/create-plan", async (req, res) => {
     })
 })
 
+app.get("/api/plans/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+  
+      const plan = await prisma.plans.findUnique({
+        where: { plan_id: id }
+      });
+  
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+  
+      res.status(200).json({ data: plan });
+    } catch (error) {
+      console.error("Error fetching plan:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
 
+// Update Plan by ID
+app.put("/api/update-plan/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+  
+      const updatedPlan = await prisma.plans.update({
+        where: { plan_id: id },
+        data: {
+          name:data.name,
+          amount:data.amount,
+          duration:data.duration,
+          type:data.type
+        }
+      });
+  
+      res.status(200).json({ data: updatedPlan });
+    } catch (error) {
+      console.error("Error updating plan:", error);
+      res.status(500).json({ error: "Could not update plan" });
+    }
+  });
 
 app.get("/api/plans", async (req, res) => {
     const allPlans = await prisma.plans.findMany()
