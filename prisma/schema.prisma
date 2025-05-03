@@ -47,7 +47,7 @@ model Subscription {
 }
 
 model TempOrder {
-  temp_id              String   @id @default(uuid())
+  temp_id              String  @unique @id @default(uuid())
   companyName     String
   userName        String
   email           String   @unique
