@@ -97,7 +97,7 @@ app.post('/api/order', async (req, res) => {
     })
     console.log(order)
 
-    const tempStore = await prisma.tempOrder.create({
+    await prisma.tempOrder.create({
         data: {
             companyName: data.companyName,
             userName: data.userName,
@@ -332,10 +332,10 @@ app.post('/api/order', async (req, res) => {
 //         return res.status(500).json({ message: "Internal server error" });
 //     }
 // };
+
 app.post("/webhook", async (req, res) => {
     try {
         console.log('🔹 Webhook Received!');
-
         const webhookBody = req.rawBody;
         if (!webhookBody) {
             console.log('❌ Missing Raw Body!');
@@ -429,9 +429,11 @@ app.post("/webhook", async (req, res) => {
                     where: { razorpayOrderId: orderId}
                 });
         
-                res.json({
+               return res.json({
                     message: `Payment verified and registration completed`
                 });
+
+               
                 
             }
 
