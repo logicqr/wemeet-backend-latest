@@ -1,12 +1,17 @@
 const express = require("express")
 const cors = require("cors")
 const cron = require('node-cron');
+const Razorpay = require('razorpay');
 const jwt = require("jsonwebtoken")
 const { PrismaClient } = require("@prisma/client");
 const app = express()
 const prisma = new PrismaClient()
 app.use(cors())
 app.use(express.json())
+const razorpay = new Razorpay({
+    key_id: 'rzp_test_Zx80R4WBqXOtJR',
+    key_secret: 'k97PIEuZ1u7FC3cPe1LP5Pe4'
+})
 
 // create plan , update , get.............................................
 
@@ -14,10 +19,10 @@ app.post("/api/create-plan", async (req, res) => {
     const data = req.body;
     const createPlan = await prisma.plans.create({
         data: {
-            name:data.name,
-            amount:data.amount,
-            duration:data.duration,
-            type:data.type
+            name: data.name,
+            amount: data.amount,
+            duration: data.duration,
+            type: data.type
         }
     })
     res.json({
@@ -27,45 +32,45 @@ app.post("/api/create-plan", async (req, res) => {
 
 app.get("/api/plans/:id", async (req, res) => {
     try {
-      const { id } = req.params;
-  
-      const plan = await prisma.plans.findUnique({
-        where: { plan_id: id }
-      });
-  
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
-      }
-  
-      res.status(200).json({ data: plan });
+        const { id } = req.params;
+
+        const plan = await prisma.plans.findUnique({
+            where: { plan_id: id }
+        });
+
+        if (!plan) {
+            return res.status(404).json({ error: "Plan not found" });
+        }
+
+        res.status(200).json({ data: plan });
     } catch (error) {
-      console.error("Error fetching plan:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+        console.error("Error fetching plan:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-  });
+});
 
 // Update Plan by ID
 app.put("/api/update-plan/:id", async (req, res) => {
     try {
-      const { id } = req.params;
-      const data = req.body;
-  
-      const updatedPlan = await prisma.plans.update({
-        where: { plan_id: id },
-        data: {
-          name:data.name,
-          amount:data.amount,
-          duration:data.duration,
-          type:data.type
-        }
-      });
-  
-      res.status(200).json({ data: updatedPlan });
+        const { id } = req.params;
+        const data = req.body;
+
+        const updatedPlan = await prisma.plans.update({
+            where: { plan_id: id },
+            data: {
+                name: data.name,
+                amount: data.amount,
+                duration: data.duration,
+                type: data.type
+            }
+        });
+
+        res.status(200).json({ data: updatedPlan });
     } catch (error) {
-      console.error("Error updating plan:", error);
-      res.status(500).json({ error: "Could not update plan" });
+        console.error("Error updating plan:", error);
+        res.status(500).json({ error: "Could not update plan" });
     }
-  });
+});
 
 app.get("/api/plans", async (req, res) => {
     const allPlans = await prisma.plans.findMany()
@@ -75,6 +80,391 @@ app.get("/api/plans", async (req, res) => {
 })
 
 //.............................................
+
+app.post('/api/order', async (req, res) => {
+    const data = req.body;
+    console.log(data)
+
+    const order = await razorpay.orders.create({
+        amount: data.amount * 100,
+        currency: "INR",
+        
+    })
+
+    const tempStore = await prisma.tempOrder.create({
+        data: {
+            companyName: data.companyName,
+            userName: data.userName,
+            email: data.email,
+            phoneNumber: data.phoneNumber,
+            position: data.position,
+            password: data.password,
+            plan_id: data.plan_id,
+            razorpayOrderId: order.id
+        }
+    })
+    res.status(200).json({ success: true, order });
+})
+
+
+// app.post('/payment-verify') = async (req, res) => {
+//     try {
+//         console.log('🔹 Webhook Received!');
+
+//         const webhookBody = req.rawBody;
+//         if (!webhookBody) {
+//             console.log('❌ Missing Raw Body!');
+//             return res.status(400).json({ message: 'Invalid webhook request' });
+//         }
+
+//         const webhookSecret = config.RAZORPAY_KEY_SECRET;
+//         const webhookSignature = req.headers['x-razorpay-signature'];
+
+//         console.log('🔹 Received Signature:', webhookSignature);
+//         console.log('🔹 Expected Secret:', webhookSecret);
+
+//         if (!webhookSecret || !webhookSignature) {
+//             console.log('❌ Missing Secret or Signature');
+//             return res.status(400).json({ message: 'Invalid webhook request' });
+//         }
+
+//         // Verify Signature
+//         const expectedSignature = crypto
+//             .createHmac('sha256', webhookSecret)
+//             .update(webhookBody) // Ensure raw body is used
+//             .digest('hex');
+
+//         console.log('🔹 Computed Signature:', expectedSignature);
+
+//         if (expectedSignature !== webhookSignature) {
+//             console.log('❌ Invalid Signature!');
+//             return res.status(400).json({ message: 'Invalid webhook signature' });
+//         }
+
+//         // Parse Webhook Event
+//         const event = JSON.parse(webhookBody);
+
+
+//         switch (event.event) {
+//             case "payment.captured": {
+//                 const paymentDetails = event.payload.payment.entity;
+//                 const orderId = paymentDetails.order_id;
+//                 const paymentId = paymentDetails.id;
+//                 const amount = paymentDetails.amount / 100;
+
+//                 console.log("✅ Payment Captured:", { orderId, paymentId, amount });
+
+//                 // Check if it's a Subscription Renewal
+//                 const renewal = await prisma.revenue.findUnique({ where: { orderId } });
+
+//                 if (renewal) {
+//                     const updatedUser = await prisma.user.update({
+//                         where: { user_id: renewal.user_id },
+//                         data: {
+
+//                             // subscriptionStartDate: new Date(), // Current time
+//                             // subscriptionEndDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+//                             // subscriptionStartDate: new Date(), // Set to the current time
+//                             // subscriptionEndDate: new Date(Date.now() + 5 * 60 * 1000), // Extend by 2 minutes
+//                             subscriptionStartDate: new Date(), // Current time
+//                             subscriptionEndDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 180 days from now
+//                             isActive: true // Set to true
+//                         },
+//                     });
+
+
+
+
+
+//                     console.log("✅ Subscription Renewed:", updatedUser);
+
+
+//                     const transaction = await prisma.transaction.create({
+//                         data: {
+//                             user_id: updatedUser.user_id,
+//                             userName: updatedUser.name,
+//                             orderId,
+//                             paymentId,
+//                             employee_id: updatedUser.employee_id,
+//                             amount,
+//                             status: "paid",
+//                             type: "Subscription Repaid",
+//                         },
+//                     })
+//                     await prisma.revenue.update({
+//                         where: { orderId },
+//                         data: { status: "paid" },
+//                     }),
+
+//                         await sendRenewalInvoiceEmail(transaction.transaction_id, updatedUser.email, updatedUser.name, paymentId, orderId, amount, updatedUser.subscriptionStartDate, updatedUser.subscriptionEndDate);
+
+//                     console.log("✅ Revenue Recorded for Renewal");
+//                     return res.status(200).json({ message: "Subscription renewed successfully" });
+//                 }
+
+//                 const tempOrder = await prisma.temporder.findUnique({ where: { orderId } });
+
+//                 if (!tempOrder) {
+//                     console.log("❌ Temp Order Not Found!");
+//                     return res.status(404).json({ message: "Temporary order not found" });
+//                 }
+
+//                 // Extract Referral Code
+//                 let referralCode = tempOrder.referralCode;
+//                 const defaultReferralCode = "WZ25MAR11-7657";
+//                 const referralSources = ["Google", "Facebook", "Instagram"];
+
+//                 if (referralSources.includes(referralCode)) {
+//                     referralCode = defaultReferralCode;
+//                 }
+
+//                 console.log('🔹 Referral Code:', referralCode);
+
+//                 // Find Staff using Referral Code
+//                 const staff = await prisma.employees.findUnique({ where: { referralCode } });
+//                 console.log("employee_id", staff.employee_id)
+
+//                 if (!staff) {
+//                     console.log('❌ Invalid Referral Code!');
+//                     return res.status(404).json({ message: "Invalid Referral Code" });
+//                 }
+
+//                 console.log('🔹 Found Staff:', staff);
+//                 console.log("employee_id", staff.employee_id);
+
+//                 // Hash Password (Ensure you installed bcrypt: npm install bcrypt)
+//                 // const bcrypt = require('bcrypt');
+//                 // const hashedPassword = await bcrypt.hash(tempOrder.password, 10);
+
+//                 // Create New User
+//                 const newUser = await prisma.user.create({
+//                     data: {
+//                         name: tempOrder.fullName,
+//                         email: tempOrder.email,
+//                         phoneNumber: tempOrder.phone,
+//                         password: tempOrder.password,  // Secure password storage
+//                         placeId: tempOrder.placeId,
+//                         businessName: tempOrder.businessName,
+//                         businessType: tempOrder.businessType,
+//                         referralCode: tempOrder.referralCode,
+//                         employee_id: staff.employee_id,
+//                         isActive: true,
+//                         subscriptionStartDate: new Date(), // Current time
+//                         subscriptionEndDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 180 days from now
+//                         // subscriptionStartDate: new Date(),
+//                         // subscriptionEndDate: new Date(Date.now() + 5 * 60 * 1000), // 2 minutes from now
+//                         // subscriptionStartDate: new Date(), // Current time
+//                         // subscriptionEndDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+//                     }
+//                 });
+
+//                 console.log("✅ New User Created:", newUser);
+
+//                 const dashboard = await prisma.dashboard.create({
+//                     data: { user_id: newUser.user_id },
+//                 });
+
+//                 console.log('✅ New User Created:', dashboard);
+
+//                 // Create Transaction Record
+//                 const transaction = await prisma.transaction.create({
+//                     data: {
+//                         user_id: newUser.user_id,
+//                         userName: newUser.name,
+//                         employee_id: newUser.employee_id,
+//                         orderId,
+//                         paymentId,
+//                         amount,
+//                         status: "paid",
+//                         type: "Signup",
+//                     },
+//                 });
+
+//                 console.log('✅ Transaction-Recorded', transaction);
+
+
+
+//                 // Transaction Handling
+//                 // await prisma.$transaction([
+//                 //     prisma.dashboard.create({ data: { user_id: newUser.user_id } }),
+//                 //     prisma.transaction.create({
+//                 //         data: {
+//                 //             user_id: newUser.user_id,
+//                 //             userName: newUser.name,
+//                 //             orderId,
+//                 //             paymentId,
+//                 //             amount,
+//                 //             status: "paid",
+//                 //             type: "Signup",
+//                 //         },
+//                 //     }),
+//                 //     prisma.temporder.delete({ where: { orderId } }),
+//                 // ]);
+
+//                 // Delete Temp Order
+//                 await prisma.temporder.delete({ where: { orderId } });
+//                 console.log('✅ Temp Order Deleted');
+
+//                 // Send Invoice Email
+//                 await sendInvoiceEmail(transaction.transaction_id, newUser.name, newUser.email, orderId, paymentId, amount, newUser.subscriptionStartDate, newUser.subscriptionEndDate);
+
+//                 console.log("✅ Transaction Recorded & Temp Order Deleted");
+//                 return res.status(200).json({ message: `${newUser.name} has been registered successfully` });
+//             }
+
+//             case "payment.failed": {
+//                 console.log("❌ Payment Failed:", event.payload.payment.entity);
+//                 return res.status(200).json({ message: "Payment failed event logged" });
+//             }
+
+//             default:
+//                 console.log("⚠️ Unhandled Event Type:", event.event);
+//                 return res.status(200).json({ message: "Unhandled event" });
+//         }
+//     } catch (error) {
+//         console.error("🔥 Webhook Processing Error:", error);
+//         return res.status(500).json({ message: "Internal server error" });
+//     }
+// };
+app.post("/webhook", async (req, res) => {
+    try {
+        console.log('🔹 Webhook Received!');
+
+        const webhookBody = req.rawBody;
+        if (!webhookBody) {
+            console.log('❌ Missing Raw Body!');
+            return res.status(400).json({ message: 'Invalid webhook request' });
+        }
+
+        const webhookSecret = "k97PIEuZ1u7FC3cPe1LP5Pe4";
+        const webhookSignature = req.headers['x-razorpay-signature'];
+
+        console.log('🔹 Received Signature:', webhookSignature);
+        console.log('🔹 Expected Secret:', webhookSecret);
+
+        if (!webhookSecret || !webhookSignature) {
+            console.log('❌ Missing Secret or Signature');
+            return res.status(400).json({ message: 'Invalid webhook request' });
+        }
+
+        // Verify Signature
+        const expectedSignature = crypto
+            .createHmac('sha256', webhookSecret)
+            .update(webhookBody) // Ensure raw body is used
+            .digest('hex');
+
+        console.log('🔹 Computed Signature:', expectedSignature);
+
+        if (expectedSignature !== webhookSignature) {
+            console.log('❌ Invalid Signature!');
+            return res.status(400).json({ message: 'Invalid webhook signature' });
+        }
+
+        // Parse Webhook Event
+        const event = JSON.parse(webhookBody);
+
+
+        switch (event.event) {
+            case "payment.captured": {
+                const paymentDetails = event.payload.payment.entity;
+                const orderId = paymentDetails.order_id;
+                const paymentId = paymentDetails.id;
+                const amount = paymentDetails.amount / 100;
+
+                console.log("✅ Payment Captured:", { orderId, paymentId, amount });
+
+                const isExistingTempOrder = await prisma.tempOrder.findUnique({
+                    where: { razorpayOrderId: orderId }
+                });
+        
+                if (!isExistingTempOrder) {
+                    return res.status(404).json({ message: "Temp order not found" });
+                }
+        
+                // 1. Create company
+                const company = await prisma.company.create({
+                    data: { companyName: isExistingTempOrder.companyName }
+                });
+        
+                // 2. Create user (SUPER_ADMIN)
+                const user = await prisma.user.create({
+                    data: {
+                        userName: isExistingTempOrder.userName,
+                        email: isExistingTempOrder.email,
+                        phoneNumber: isExistingTempOrder.phoneNumber,
+                        position: isExistingTempOrder.position,
+                        password: isExistingTempOrder.password,
+                        role: "SUPER_ADMIN",
+                        company_id: company.company_id
+                    }
+                });
+        
+                // 3. Create subscription
+                const plan = await prisma.plans.findUnique({
+                    where: { plan_id: isExistingTempOrder.plan_id }
+                });
+        
+                const now = new Date();
+                const end = new Date(now);
+                end.setDate(end.getDate() + plan.duration);
+        
+                await prisma.subscription.create({
+                    data: {
+                        company_id: company.company_id,
+                        plan_id: plan.plan_id,
+                        startDate: now,
+                        endDate: end,
+                        isActive: true
+                    }
+                });
+        
+                // 4. Optionally, delete temp order
+                await prisma.tempOrder.delete({
+                    where: { razorpayOrderId: orderId}
+                });
+        
+                res.json({
+                    message: `Payment verified and registration completed`
+                });
+                
+            }
+
+            case "payment.failed": {
+                console.log("❌ Payment Failed:", event.payload.payment.entity);
+                return res.status(200).json({ message: "Payment failed event logged" });
+            }
+
+            default:
+                console.log("⚠️ Unhandled Event Type:", event.event);
+                return res.status(200).json({ message: "Unhandled event" });
+        }
+    } catch (error) {
+        console.error("🔥 Webhook Processing Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+})
+
+
+// app.post('/payment-verify', async (req, res) => {
+//     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+//     // Optional: Verify the payment signature
+//     const hmac = crypto.createHmac("sha256", "YOUR_SECRET");
+//     hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+//     const generatedSignature = hmac.digest("hex");
+
+//     if (generatedSignature !== razorpay_signature) {
+//         return res.status(400).json({ message: "Invalid signature" });
+//     }
+
+//     try {
+       
+
+//     } catch (error) {
+//         console.error("Payment verification error:", error);
+//         res.status(500).json({ error: "Something went wrong during verification" });
+//     }
+// });
 
 app.post("/api/register", async (req, res) => {
     const data = req.body;
@@ -95,6 +485,7 @@ app.post("/api/register", async (req, res) => {
         data: {
             userName: data.userName,
             email: data.email,
+            phoneNumber: data.phoneNumber,
             position: data.position,
             password: data.password,
             role: "SUPER_ADMIN",
@@ -268,6 +659,7 @@ app.post("/api/add-user", async (req, res) => {
                 userName: data.userName,
                 employee_id: uniqueID,
                 email: data.email,
+                phoneNumber: data.phoneNumber,
                 department: data.department,
                 position: data.position,
                 password: data.password,
@@ -293,7 +685,7 @@ app.post("/api/all-users", async (req, res) => {
         const getAllUsers = await prisma.user.findMany({
             where: {
                 company_id: data.company_id,
-                
+
             },
             select: {
                 user_id: true,
@@ -588,7 +980,7 @@ app.post('/api/leave-request', async (req, res) => {
             user_id: data.user_id
         }
     })
-   
+
     res.json({
         data: createLeaveRequest
     })
@@ -772,64 +1164,64 @@ app.get('/api/user-report/:userId', async (req, res) => {
 
 app.get('/api/company', async (req, res) => {
     try {
-      const getAllUser = await prisma.user.findMany({
-        where: {
-          role: 'SUPER_ADMIN',
-        },
-        select: {
-          userName: true,
-          email: true,
-          company: {
+        const getAllUser = await prisma.user.findMany({
+            where: {
+                role: 'SUPER_ADMIN',
+            },
             select: {
-              companyName: true,
+                userName: true,
+                email: true,
+                company: {
+                    select: {
+                        companyName: true,
+                    }
+                }
             }
-          }
-        }
-      }); 
-      res.json(getAllUser);
+        });
+        res.json(getAllUser);
     } catch (error) {
-      console.error("Error fetching companies:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+        console.error("Error fetching companies:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-  });
-  
-    
+});
 
-   
+
+
+
 
 
 
 // cron.schedule('* * * * *', async () => {
-    
-  app.post("/jaromjery",async(req,res)=>{
+
+app.post("/jaromjery", async (req, res) => {
 
     console.log('⏰ Running attendance cron job');
     try {
-      const users = await prisma.user.findMany();
-  
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to 12:00 AM of today
-      console.log(today)
-  
-      const attendanceData = users.map(user => ({
-        user_id: user.user_id,
-        date: today,
-        status: 'ABSENT',
-        checkIn: null,
-        checkOut: null
-      }));
-  
-      await prisma.attendance.createMany({
-        data: attendanceData,
-        skipDuplicates: true,
-      });
-  
-      console.log('✅ Attendance created for all users');
+        const users = await prisma.user.findMany();
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Set to 12:00 AM of today
+        console.log(today)
+
+        const attendanceData = users.map(user => ({
+            user_id: user.user_id,
+            date: today,
+            status: 'ABSENT',
+            checkIn: null,
+            checkOut: null
+        }));
+
+        await prisma.attendance.createMany({
+            data: attendanceData,
+            skipDuplicates: true,
+        });
+
+        console.log('✅ Attendance created for all users');
     } catch (error) {
-      console.error('❌ Error in cron job:', error);
+        console.error('❌ Error in cron job:', error);
     }
- // });
-  
+    // });
+
 })
 
 
