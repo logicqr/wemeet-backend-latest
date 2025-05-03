@@ -2,12 +2,17 @@ const express = require("express")
 const cors = require("cors")
 const cron = require('node-cron');
 const Razorpay = require('razorpay');
+const crypto = require('crypto');
 const jwt = require("jsonwebtoken")
 const { PrismaClient } = require("@prisma/client");
 const app = express()
 const prisma = new PrismaClient()
 app.use(cors())
-app.use(express.json())
+app.use(express.json({
+    verify: (req, _res, buf) => {
+        req.rawBody = buf.toString(); // Store raw body as a string
+    }
+  }));
 const razorpay = new Razorpay({
     key_id: 'rzp_test_Zx80R4WBqXOtJR',
     key_secret: 'k97PIEuZ1u7FC3cPe1LP5Pe4'
@@ -90,6 +95,7 @@ app.post('/api/order', async (req, res) => {
         currency: "INR",
         
     })
+    console.log(order)
 
     const tempStore = await prisma.tempOrder.create({
         data: {
